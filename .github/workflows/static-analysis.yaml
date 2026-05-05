@@ -1,0 +1,226 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+
+name: GitHub Workflows SCA
+run-name: >-
+  GitHub Workflow SCA for ${{ github.event.pull_request.title || github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  # Also provide the capability to directly call this action as well, which may
+  # be useful to complete some testing and auditing of existing repositories
+  # with auditor mode, or a different version.
+  workflow_call:
+    inputs:
+      auditor:
+        description: >-
+          Whether to enable "auditor" mode, which is more strict and may result
+          in more false-positives, but is useful for auditing new codebases for
+          issues. If false, "pedantic" mode will be enabled instead, which is
+          less strict and may result in fewer false-positives, but is better for
+          preventing issue overload in existing codebases.
+        type: boolean
+        required: false
+        default: false
+
+      version:
+        description: >-
+          Set the version of zizmor to use, which can only be a specific version
+          (e.g. v1.24.1). If the "latest" version is specified, it will be
+          ignored and the current default version (v1.24.1) will be used instead
+          to prevent potential breaking change issues, and supply chain risks.
+        type: string
+        required: false
+        default: v1.24.1
+
+defaults:
+  run:
+    # Error handling and pipefail must be explicitly set via the default shell
+    #   https://github.com/actions/runner/issues/353#issuecomment-1067227665
+    shell: bash --noprofile --norc -eo pipefail {0}
+
+# No permissions by default
+permissions: {}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out repositories
+      actions: read # access actions metadata
+      checks: write # submit annotations to the commit
+    concurrency:
+      group: ${{ github.repository }}:${{ github.ref }}:zizmor
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout the repository
+        id: checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # zizmor does not support gobbing patterns in it's inputs argument, so we
+      # must dynamically collect the files we need to analyze in each of the
+      # following steps and pass them as an output to the subsequent steps.
+      - name: Scan for files
+        id: files
+        run: |
+          # find {.github/{workflows/,dependabot}*,action}.ya?ml
+
+          echo "Searching for files..."
+
+          WORKFLOWS=$(
+            find .github/workflows -type f \
+              \( -name '*.yaml' -or -name '*.yml' \) -print0 \
+            | xargs -0 echo \
+            2> /dev/null || true
+          )
+          echo "workflows=${WORKFLOWS:-(none)}"
+          echo "workflows=${WORKFLOWS}" >> "${GITHUB_OUTPUT}"
+
+          ACTIONS=$(
+            find . -type f \
+              \( -name 'action.yaml' -or -name 'action.yml' \) -print0 \
+            | xargs -0 echo \
+            2> /dev/null || true
+          )
+          echo "actions=${ACTIONS:-(none)}"
+          echo "actions=${ACTIONS}" >> "${GITHUB_OUTPUT}"
+
+          DEPENDABOT=$(
+            find .github -type f \
+              \( -name 'dependabot.yaml' -or -name 'dependabot.yml' \) -print0 \
+            | xargs -0 echo \
+            2> /dev/null || true
+          )
+          echo "dependabot=${DEPENDABOT:-(none)}"
+          echo "dependabot=${DEPENDABOT}" >> "${GITHUB_OUTPUT}"
+
+          if [[ -z "${WORKFLOWS}" \
+             && -z "${ACTIONS}" \
+             && -z "${DEPENDABOT}" ]]; then
+            echo
+            echo "No files found to analyse, skipping the rest of the workflow."
+          fi
+
+      # GitHub Workflow annotations have a limit of ten annotations per type -
+      # Error/Warning - per GitHub Workflow step, any fifty per type/job. To
+      # help break up the errors and manage these limits, split the checks
+      # for GitHub Workflows, GitHub Actions, and Dependabot into separate
+      # steps, which will allow up to 30 annotations to be submitted for each
+      # category of checks, and will also make it easier to identify which
+      # category of checks is causing any issues that are found.
+
+      - name: Run zizmor for GitHub Workflows
+        id: workflows
+        if: >-
+          steps.files.outputs.workflows != ''
+        # yamllint disable-line rule:line-length
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        with:
+          # Use github.token to authenticate with GitHub for zizmor checks
+          token: ${{ github.token }}
+
+          inputs: ${{ steps.files.outputs.workflows }}
+
+          # Restrict the ability to automatically deploy the latest release. If
+          # the "latest" version is specified, override with the current default
+          # version instead.
+          # yamllint disable-line rule:line-length
+          version: ${{ inputs.version != 'latest' && inputs.version || 'v1.24.1' }}
+
+          # GitHub Advanced Security is no longer permitted in MSI Alta Video
+          # repositories, so we disable it here to avoid errors and ensure
+          # annotations are still submitted for any issues found.
+          advanced-security: false
+          annotations: true
+
+          # Enable the pedantic mode by default, which includes "code smells"
+          # tests in addition to the regular checks, but do not use "auditor"
+          # mode unless specifically configured, as that may result in too many
+          # false-positives for normal use.
+          persona: ${{ inputs.auditor && 'auditor' || 'pedantic' }}
+
+      - name: Run zizmor for GitHub Actions
+        id: actions
+        # Always run this step, even if the previous step fails, to ensure we
+        # can submit any annotations for GitHub Actions, but only if there are
+        # GitHub Action files to check.
+        if: >-
+          steps.files.outputs.actions != '' &&
+          ( success() || failure() )
+        # yamllint disable-line rule:line-length
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        with:
+          token: ${{ github.token }}
+          inputs: ${{ steps.files.outputs.actions }}
+          # yamllint disable-line rule:line-length
+          version: ${{ inputs.version != 'latest' && inputs.version || 'v1.24.1' }}
+          advanced-security: false
+          annotations: true
+          fail-on-no-inputs: false
+          persona: ${{ inputs.auditor && 'auditor' || 'pedantic' }}
+
+      - name: Run zizmor for Dependabot
+        id: dependabot
+        if: >-
+          steps.files.outputs.dependabot != '' &&
+          ( success() || failure() )
+        # yamllint disable-line rule:line-length
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        with:
+          token: ${{ github.token }}
+          inputs: ${{ steps.files.outputs.dependabot }}
+          # yamllint disable-line rule:line-length
+          version: ${{ inputs.version != 'latest' && inputs.version || 'v1.24.1' }}
+          advanced-security: false
+          annotations: true
+          fail-on-no-inputs: false
+          persona: ${{ inputs.auditor && 'auditor' || 'pedantic' }}
+
+      - name: Output results notification
+        id: notification
+        if: always()
+        env:
+          WORKFLOWS_OUTCOME: ${{ steps.workflows.outcome }}
+          ACTIONS_OUTCOME: ${{ steps.actions.outcome }}
+          DEPENDABOT_OUTCOME: ${{ steps.dependabot.outcome }}
+        run: |
+          # echo ... && exit {0,1}
+          fail=0
+
+          if [[ "${WORKFLOWS_OUTCOME}" == "failure" ]]; then
+            echo >&2 "::error title=GitHub Workflows SCA::The GitHub" \
+              "Workflow SCA identified potential issues in one or more" \
+              "GitHub Workflow files. Please check and review the errors" \
+              "and/or warnings identified."
+            fail=1
+          fi
+
+          if [[ "${ACTIONS_OUTCOME}" == "failure" ]]; then
+            echo >&2 "::error title=GitHub Workflows SCA::The GitHub" \
+              "Workflow SCA identified potential issues in the GitHub Action" \
+              "configuration file. Please check and review the errors and/or" \
+              "warnings identified."
+            fail=1
+          fi
+
+          if [[ "${DEPENDABOT_OUTCOME}" == "failure" ]]; then
+            echo >&2 "::error title=GitHub Workflows SCA::The GitHub" \
+              "Workflow SCA identified potential issues in the Dependabot" \
+              "configuration file. Please check and review the errors" \
+              "and/or warnings identified."
+            fail=1
+          fi
+
+          if [[ ${fail} -eq 0 ]]; then
+            echo >&2 "::notice title=GitHub Workflows SCA::The GitHub" \
+              "Workflow SCA did not idenitify any potential issues in" \
+              "the GitHub Workflows, in the GitHub Action, nor in the" \
+              "Dependabot configurations."
+          fi

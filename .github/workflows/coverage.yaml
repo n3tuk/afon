@@ -1,0 +1,71 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+
+name: Coverage
+run-name: >-
+  Analysing Coverage for ${{ github.event.pull_request.title || github.sha }}
+
+concurrency:
+  group: ${{ github.repository }}:${{ github.ref }}:coverage
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  coverage:
+    name: codecov
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout the repository
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    steps:
+      - name: Checkout the Repository
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        # yamllint disable-line rule:line-length
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+          cache: true
+
+      - name: Verify the Go modules
+        run: go mod verify
+
+      - name: Download the Go modules
+        run: go mod download
+
+      - name: Run coverage tests
+        run: |-
+          go test -v ./... \
+            -covermode=count \
+            -coverprofile=coverage.out
+
+      - name: Show coverage report summary
+        run: |-
+          go tool cover \
+            -func=coverage.out
+
+      - name: Upload coverage reports to Codecov
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        # yamllint disable-line rule:line-length
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          name: go-cover
+          flags: unit-tests

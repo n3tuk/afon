@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+
+name: afon
+author: Jonathan Wright
+description: >-
+  A GitHub Action to provide an interface between an upstream repository
+  template, and building and applying that template to a downstream repository.
+
+runs:
+  using: composite
+  steps:
+    - name: Run afon to build and apply the template
+      # There are no containers, nor tags, to use, so, for the moment we'll just
+      # use the latest image tag until we have a more concrete release process.
+      uses: docker://gcr.io/n3tuk/afon:latest # zizmor: ignore[unpinned-uses]
