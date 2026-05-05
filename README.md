@@ -1,5 +1,9 @@
 # afon — Upstream Template Repository Engine
 
+[![CodeQL](https://github.com/n3tuk/afon/actions/workflows/codeql.yaml/badge.svg)](https://github.com/n3tuk/afon/actions/workflows/codeql.yaml)
+[![Code Coverage](https://codecov.io/gh/n3tuk/afon/branch/main/graph/badge.svg?token=GSu1DCSng1)](https://codecov.io/gh/n3tuk/afon)
+[![Draft Release](https://github.com/n3tuk/afon/actions/workflows/draft-release.yaml/badge.svg?branch=main)](https://github.com/n3tuk/afon/actions/workflows/draft-release.yaml)
+
 `afon` is a Go CLI tool and GitHub Action for continuously applying an upstream
 template repository to one or more downstream repositories. Similar to
 [Cookiecutter][cookiecutter] and [Yeoman][yeoman] for initial scaffolding,
