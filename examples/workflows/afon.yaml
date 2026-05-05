@@ -9,32 +9,33 @@
 # It checks out the downstream repository, runs afon to apply the template, and
 # opens a pull request with any resulting changes.
 
-name: Template Updates
-run-name: Render & Apply Upstream Template
+name: Repository Template Updates
+run-name: Render & Apply Upstream Templates
 
 concurrency:
-  group: ${{ github.repository }}:apply-template
+  group: ${{ github.repository }}:templates
   cancel-in-progress: true
 
 on:
   schedule:
     - cron: 0 6 * * 1 # Every Monday at 06:00
       timezone: Europe/London
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch: # Or on-demand
 
 # No permissions by default
 permissions: {}
 
 jobs:
   apply:
-    name: Apply upstream template
+    name: afon
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
 
-    # NOTE: Pin each action to a full commit SHA rather than a mutable tag or
-    #       branch for supply-chain security in production workflows.
+    # NOTE: It is highly recommended that you always pin each action to a full
+    #       commit SHA rather than a mutable tag or branch for supply-chain
+    #       security in production workflows.
 
     steps:
       - name: Checkout the repository
@@ -42,10 +43,8 @@ jobs:
 
       - name: Apply upstream template with afon
         uses: n3tuk/afon@latest
-        with:
-          source: https://github.com/n3tuk/afon-template
 
-      - name: Open a pull request for template changes
+      - name: Open a pull request for changes
         uses: peter-evans/create-pull-request@v7
         with:
           title: >-
@@ -60,9 +59,11 @@ jobs:
             [afon]: https://github.com/n3tuk/afon
           commit-message: >-
             chore: apply upstream template updates
+
+            An automated commit created by [afon][afon] which applies the latest
+            changes from the upstream template repository to this one. Please
+            review the changes and merge if appropriate.
+
+            [afon]: https://github.com/n3tuk/afon
           branch: chore/apply-template-updates
           delete-branch: true
-          labels: |
-            release/chore
-            update/dependencies
-            type/configuration
