@@ -1,0 +1,140 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  github:analyse:
+    desc: Analyse the GitHub Workflows, Action, and Dependabot configurations
+    summary: |-
+      Run static analysis tools against the GitHub Workflows, Action, and
+      Dependabot configurations to identify any potential misconfiguration
+      issues or security weaknesses within the workflows and configuration.
+    silent: true
+    cmds:
+      - task: github:analyse:workflows
+      - task: github:analyse:action
+      - task: github:analyse:dependabot
+
+  github:analyse:workflows:
+    desc: Analyse the GitHub Workflows
+    summary: |-
+      Run static analysis tools (actionlint and zizmor) against the GitHub
+      Workflows to identify any potential misconfiguration issues or security
+      weaknesses within the workflows.
+    silent: true
+    cmds:
+      - task: github:analyse:workflows:actionlint
+      - task: github:analyse:workflows:zizmor
+
+  github:analyse:workflows:actionlint:
+    internal: true
+    desc: Lint the GitHub Workflows with actionlint
+    summary: |-
+      Run actionlint against the GitHub Workflows to identify any potential
+      control flow weaknesses and GitHub runner incompatibilities.
+    sources:
+      - .github/workflows/*.yaml
+      - .actionlint.yaml
+    silent: true
+    cmds:
+      - cmd: |-
+          actionlint \
+            -config-file .actionlint.yaml \
+            -no-color \
+            .github/workflows/*.yaml
+      - cmd: echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  github:analyse:workflows:zizmor:
+    internal: true
+    desc: Analyse the GitHub Workflows with zizmor
+    summary: |-
+      Run zizmor against the GitHub Workflows to identify any potential issues
+      with artifact integrity, excessive permissions, injection weaknesses,
+      secrets exposure weaknesses, trigger misuse, and unpinned dependencies.
+    sources:
+      - .github/workflows/*.yaml
+      - .github/zizmor.yaml
+    silent: true
+    cmds:
+      - cmd: |-
+          zizmor \
+            --config .github/zizmor.yaml \
+            --persona auditor \
+            --no-progress \
+            --format plain \
+            --render-links always \
+            --show-audit-urls always \
+            --color never \
+            .github/workflows/*.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  github:analyse:action:
+    desc: Analyse the GitHub Action configuration
+    summary: |-
+      Run static analysis tools (zizmor) against the GitHub Action configuration
+      to identify any potential misconfiguration issues or security weaknesses.
+    silent: true
+    cmds:
+      - task: github:analyse:action:zizmor
+
+  github:analyse:action:zizmor:
+    internal: true
+    desc: Analyse the GitHub Action configuration with zizmor
+    summary: |-
+      Run zizmor against the GitHub Action configuration to identify any
+      potential issues with the configuration, such as missing cooldowns,
+      invalid values, etc..
+    sources:
+      - action.yaml
+      - .github/zizmor.yaml
+    silent: true
+    cmds:
+      - cmd: |-
+          zizmor \
+            --config .github/zizmor.yaml \
+            --persona auditor \
+            --no-progress \
+            --format plain \
+            --render-links always \
+            --show-audit-urls always \
+            --color never \
+            action.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  github:analyse:dependabot:
+    desc: Analyse the GitHub Dependabot configuration
+    summary: |-
+      Run static analysis tools (zizmor) against the GitHub Dependabot
+      configuration to identify any potential misconfiguration issues or
+      security issues.
+    silent: true
+    cmds:
+      - task: github:analyse:dependabot:zizmor
+
+  github:analyse:dependabot:zizmor:
+    internal: true
+    desc: Analyse the GitHub Dependabot configuration with zizmor
+    summary: |-
+      Run zizmor against the GitHub Dependabot configuration to identify any
+      potential issues with the configuration, such as missing cooldowns,
+      invalid values, etc..
+    sources:
+      - .github/dependabot.yaml
+      - .github/zizmor.yaml
+    silent: true
+    cmds:
+      - cmd: |-
+          zizmor \
+            --config .github/zizmor.yaml \
+            --persona auditor \
+            --no-progress \
+            --format plain \
+            --render-links always \
+            --show-audit-urls always \
+            --color never \
+            .github/dependabot.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'

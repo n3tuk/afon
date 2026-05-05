@@ -1,0 +1,51 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  yaml:lint:
+    internal: false
+    desc: Run yamllint for all YAML files
+    sources:
+      - '**/*.yml'
+      - '**/*.yaml'
+      - .*.yml
+      - .*.yaml
+      - .*/**/*.yml
+      - .*/**/*.yaml
+      - '{{ .root }}/.yamllint.yaml'
+      # Ignore any temporary files for CodeQL or Trivy
+      - exclude: .codeql/**
+      - exclude: .trivy/**
+      # Ignore any testdata files for the internal/config package
+      - exclude: internal/config/testdata/**
+      # Ignore generated files from the dist/ directory
+      - exclude: dist/**
+    vars:
+      files:
+        sh: |-
+          find . \
+               -ignore_readdir_race \
+               -type f \
+               -not \
+            \(     -path './.codeql/*' \
+               -or -path './.trivy/*' \
+               -or -path './internal/config/testdata/*' \
+               -or -path './dist/*' \
+            \) -and \
+            \(     -iname '*.yml' \
+               -or -iname '*.yaml' \
+            \) -printf '%P ' \
+          2> /dev/null || true
+    deps:
+      - task: formatting:prettier
+    silent: true
+    cmds:
+      - cmd: |-
+          [[ -n '{{ .files }}' ]] || exit 0
+          yamllint \
+            --config-file .yamllint.yaml \
+            --format standard \
+            {{ .files }}
+          echo -e '{{ .cg }}Passed{{ .cc }}'

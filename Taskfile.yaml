@@ -1,0 +1,171 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+output: prefixed
+interval: 5s
+
+vars:
+  root:
+    sh: git rev-parse --show-toplevel
+  bin: afon
+
+  # ANSI Colours
+  cr: \e[1;31m
+  cg: \e[0;32m
+  cw: \e[1;37m
+  cc: \e[0m
+
+# Enforce the pipefail option in the Bash library to ensure that where commands
+# are run through pipes, the failure of any one step in the pipeline fails the
+# whole pipe. For example, terraform |& tee will not normally fail if Terraform
+# fails as tee almost always will exit cleanly, unless pipefail is set.
+set:
+  - pipefail
+
+includes:
+  # Pull in Taskfiles to manage the general components of this repository, such
+  # as providing checks, and the linting and validation of general files
+  utils:
+    taskfile: .task/utils.yaml
+    flatten: true
+  formating:
+    taskfile: .task/formatting.yaml
+    flatten: true
+  markdown:
+    taskfile: .task/markdown.yaml
+    flatten: true
+  schemas:
+    taskfile: .task/schemas.yaml
+    flatten: true
+  yaml:
+    taskfile: .task/yaml.yaml
+    flatten: true
+  github:
+    taskfile: .task/github.yaml
+    flatten: true
+  go:
+    taskfile: .task/go.yaml
+    flatten: true
+  images:
+    taskfile: .task/images.yaml
+    flatten: true
+
+tasks:
+  default:
+    desc: Run the development and integration tasks
+    summary: |-
+      Run the development and integration tasks for all code, configurations,
+      documentation, and general file types
+
+      Use the following command for additional information on the steps
+      involved:
+
+      $ task --summary develop
+    silent: true
+    cmds:
+      - task: develop
+
+  develop:
+    aliases:
+      - d
+      - dev
+    desc: Run the development and integration tasks
+    summary: |-
+      Run all integration and building tasks for the Go application, as well as
+      the general files in this repository, to ensure that all files are
+      correctly formatted, linted, and validated.
+
+      - Re-format all GoLang files;
+      - Run extensive linting tests and checks on the Go application using
+        golangci-lint as the interface to the tests;
+      - Run extensive linting checks and validations on both configuration and
+        documentation files;
+      - Run unit and integration tests of the Go application using go test;
+      - Build the Go application using goreleaser, providing standadised builds
+        both locally and during CI/CD for release;
+      - Run static analysis and security analysis against the Go application to
+        identify protential code and security issues.
+    silent: true
+    deps:
+      - task: utils:pre-checks
+      - task: utils:pre-commit
+      - task: go:healthcheck
+    cmds:
+      - task: lint
+      - task: test
+      - task: build
+      - task: analyse
+
+  lint:
+    desc: Check linting of Go, JSON, YAML, and Markdown files
+    summary: |
+      Check and validate, and reformt if necessary, all the common file types in
+      this repository, including:
+
+      - Linting the formatting of Go files with `go fmt`;
+      - Check, and reformat, if necessary, Markdown documentation plus JSON and
+        YAML configuration files to ensure consistant layout and minimising
+        whitespace changes;
+      - Validation of the configuration of selected YAML files to ensure that
+        the free-form layout is syntatically valid for their purpose, including
+        Taskfiles, dependabot configuraiton, GitHub Workflows, and the
+        pre-commit configuration.
+      - Validate the Markdown files are valid and have a clean layout and will
+        render as expected.
+    silent: true
+    cmds:
+      - task: go:lint
+      - task: formatting:prettier
+      - task: markdown:lint
+      - task: yaml:lint
+      - task: schemas:lint
+
+  test:
+    desc: Run the unit tests
+    summary: |
+      Run the unit and integration tests for the Go application.
+    silent: true
+    cmds:
+      - task: go:test
+
+  analyse:
+    desc: Run static code analysis and security analysis tools
+    summary: >-
+      Run static code analysis and security analysis tools against the Go
+      application, as well as some repository configuration files, to identify
+      any potential code issues or security weaknesses within the code.
+    silent: true
+    cmds:
+      - task: github:analyse
+      - task: go:codeql
+
+  build:
+    desc: Locally build the application binary and Helm Chart
+    summary: |-
+      Locally build the application binary for the testing and local development
+      of the Lambda function with a temporary version number based on the local
+      commit and file contents, as well as the Helm Chart for deployment.
+    silent: true
+    cmds:
+      - task: go:build
+
+  clean:
+    desc: Clean temporary directories and files from this function
+    summary: |-
+      Clean any temporary directories and files created by, or for, this Go
+      application, as well as this Taskfile, and the tools and applications
+      called from it, including:
+
+      - Remove any previously created executables used for testing;
+      - Remove any previously created build files and archives;
+      - Remove all cache files for Task to ensure that all files are
+        re-evaluated and all tasks are re-run from scratch.
+    run: once
+    silent: true
+    cmds:
+      - task: go:clean
+      - cmd: rm -f .prettiercache
+      - cmd: rm -rf .task/checksum
+      - cmd: echo -e '{{ .cg }}Completed{{ .cc }}'

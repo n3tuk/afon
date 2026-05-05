@@ -1,0 +1,56 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  # Run checks within the local environment to find out if the required tools
+  # exist, and if not exit from running any further with an explanation
+  utils:pre-checks:
+    internal: true
+    silent: true
+    run: once
+    deps:
+      - task: utils:check:prettier
+      - task: utils:check:markdownlint
+      - task: utils:check:check-jsonschema
+      - task: utils:check:trivy
+      - task: utils:check:codeql
+      - task: utils:check:go
+      - task: utils:check:goreleaser
+      - task: utils:check:actionlint
+      - task: utils:check:zizmor
+      - task: utils:check:hadolint
+
+  # Run a check for a specific executable to ensure it's available within $PATH
+  utils:check:*:
+    internal: true
+    silent: true
+    run: once
+    cmds:
+      # yamllint disable rule:line-length
+      - cmd: |-
+          test -x "$(which '{{ index .MATCH 0 }}' 2>/dev/null)" \
+            || ( echo -e '{{ .cr }}Cannot find {{ index .MATCH 0 }} in $PATH{{ .cc }}'
+                 exit 1 )
+      # yamllint enable rule:line-length
+    status:
+      # Set this file to bypass all checks (only if you know what you're doing)
+      - test -f {{ .root }}/.skip-pre-checks
+
+  # Enable the pre-commit hook in this repository to ensure that all the
+  # required checks are run before committing staged changes back upstream
+  utils:pre-commit:
+    internal: true
+    silent: true
+    run: once
+    deps:
+      - task: utils:check:pre-commit
+    cmds:
+      # Avoid outputting anything from this command
+      - cmd: |-
+          pre-commit install >/dev/null 2>&1
+    generates:
+      - '{{ .root }}/.git/hooks/pre-commit'
+    status:
+      - test -f '{{ .root }}/.git/hooks/pre-commit'

@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  markdown:lint:
+    internal: false
+    sources:
+      - '**/*.md'
+      - .*.md
+      - .*/**/*.md
+      - '{{ .root }}/.markdownlint.yaml'
+      - '{{ .root }}/.markdownignore'
+      # Ignore any temporary files for CodeQL or Trivy
+      - exclude: .codeql/**
+      - exclude: .trivy/**
+    vars:
+      files:
+        sh: |-
+          find . \
+               -ignore_readdir_race \
+               -type f \
+               -not \
+            \(     -path './.codeql/*' \
+               -or -path './.trivy/*' \
+            \) -and \
+               -iname '*.md' \
+               -printf '%P ' \
+          2> /dev/null || true
+    silent: true
+    cmds:
+      - cmd: |-
+          [[ -n '{{ .files }}' ]] || exit 0
+          markdownlint \
+            --config .markdownlint.yaml \
+            --ignore-path .markdownignore \
+            {{ .files }}
+          echo -e '{{ .cg }}Passed{{ .cc }}'

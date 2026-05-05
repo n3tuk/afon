@@ -1,0 +1,60 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  formatting:prettier:
+    desc: Run Prettier for all supported files
+    summary: |-
+      Run Prettier for all supported files, including Markdown, YAML, and JSON
+      files, in order to ensure they are correct, structured and that they are
+      consistent in their layout and usage, minimising whitespace changes.
+    sources:
+      - '**/*.md'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.json'
+      - .*.md
+      - .*.yml
+      - .*.yaml
+      - .*.json
+      - .*/**/*.md
+      - .*/**/*.yml
+      - .*/**/*.yaml
+      - .*/**/*.json
+      - '{{ .root }}/.prettier.yaml'
+      - '{{ .root }}/.prettierignore'
+      - '{{ .root }}/.gitignore'
+      # Ignore any temporary files for CodeQL or Trivy
+      - exclude: .codeql/**
+      - exclude: .trivy/**
+      # Ignore generated files from the dist/ directory
+      - exclude: dist/**
+    vars:
+      files:
+        sh: |-
+          find . \
+               -ignore_readdir_race \
+               -type f \
+               -not \
+            \(     -path './.codeql/*' \
+               -or -path './.trivy/*' \
+               -or -path './dist/*' \
+            \) -and \
+            \(           -iname '*.yml' \
+               -or       -iname '*.yaml' \
+               -or       -iname '*.json' \
+               -or       -iname '*.md' \
+            \) -printf '%P ' \
+          2>/dev/null || echo 'README.md'
+    silent: true
+    cmds:
+      # There is no need to test if .files is empty as it guaranteed to list at
+      # least the one file, being the README.md in the root of the repository
+      - cmd: |-
+          prettier --log-level log \
+            --write --config .prettier.yaml \
+            --cache --cache-location .prettiercache \
+            {{ .files }}
+          echo -e '{{ .cg }}Passed{{ .cc }}'

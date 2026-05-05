@@ -1,0 +1,128 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: 3
+
+tasks:
+  schemas:lint:
+    internal: false
+    desc: Validate the schema of YAML files in the repository
+    summary: |-
+      Validate the layout and content of the YAML files in this repository
+      using the JSON Schema files, including:
+
+      - Taskfiles (Taskfile.yaml, .taskfiles/*.yaml)
+      - GitHub Dependabot configuration (.github/dependabot.yaml)
+      - GitHub Workflows (.github/workflows/*.yaml)
+      - pre-commit Configuration (.pre-commit-config.yaml)
+      - CodeCov Configuration (.codecov.yml)
+      - Mergify Configuration (.github/mergify.yaml)
+    silent: true
+    cmds:
+      - task: schemas:lint:taskfiles
+      - task: schemas:lint:dependabot
+      - task: schemas:lint:workflows
+      - task: schemas:lint:pre-commit
+      - task: schemas:lint:codecov
+      - task: schemas:lint:mergify
+
+  schemas:lint:taskfiles:
+    internal: true
+    sources:
+      - Taskfile.yaml
+      - .task/*.yaml
+    silent: true
+    cmds:
+      # As this command is being run by Taskfile then we can assume that
+      # Taskfile.yaml exists and we do not need to check for the files first
+      - cmd: |-
+          check-jsonschema \
+            --output-format text --verbose \
+            --builtin-schema vendor.taskfile \
+            Taskfile.yaml .task/*.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  schemas:lint:dependabot:
+    internal: true
+    sources:
+      - .github/dependabot.yaml
+    silent: true
+    cmds:
+      # Check that the dependabot.yaml file exists first, and fail cleanly if
+      # that is the case, otherwise check-jsonschema will fail the check
+      - cmd: |-
+          [[ -f .github/dependabot.yaml ]] || exit 0
+          check-jsonschema \
+            --output-format text --verbose \
+            --builtin-schema vendor.dependabot \
+            .github/dependabot.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  schemas:lint:workflows:
+    internal: true
+    sources:
+      - .github/workflows/*.yaml
+    vars:
+      files:
+        sh: |-
+          find .github/workflows \
+            -ignore_readdir_race \
+            -type f \
+            -iname '*.yaml' \
+            -printf '.github/workflows/%P ' \
+          2>/dev/null || true
+    silent: true
+    cmds:
+      - cmd: |-
+          [[ -z '{{ .files }}' ]] && exit 0
+          check-jsonschema \
+            --output-format text --verbose \
+            --builtin-schema vendor.github-workflows \
+            {{ .files }}
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  schemas:lint:pre-commit:
+    internal: true
+    sources:
+      - .pre-commit-config.yaml
+    silent: true
+    cmds:
+      - cmd: |-
+          [[ -f .pre-commit-config.yaml ]] || exit 0
+          check-jsonschema \
+            --output-format text --verbose \
+            --schemafile https://www.schemastore.org/pre-commit-config.json \
+            .pre-commit-config.yaml
+      - cmd: |-
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  schemas:lint:codecov:
+    internal: true
+    silent: true
+    sources:
+      - .codecov.yml
+    cmds:
+      - cmd: |-
+          [[ -f .codecov.yml ]] || exit 0
+          check-jsonschema \
+            --output-format text --verbose \
+            --builtin-schema vendor.codecov \
+            .codecov.yml
+          echo -e '{{ .cg }}Passed{{ .cc }}'
+
+  schemas:lint:mergify:
+    internal: true
+    silent: true
+    sources:
+      - .github/mergify.yml
+    cmds:
+      - cmd: |-
+          [[ -f .github/mergify.yml ]] || exit 0
+          check-jsonschema \
+            --output-format text --verbose \
+            --builtin-schema vendor.mergify \
+            .github/mergify.yml
+          echo -e '{{ .cg }}Passed{{ .cc }}'
