@@ -1,0 +1,68 @@
+---
+# yaml-language-server $schema=https://www.schemastore.org/github-workflow.json
+
+# This is an example GitHub Workflow for downstream repositories that use afon
+# to apply an upstream template. Copy this file to .github/workflows/ in your
+# downstream repository and adjust the configuration as needed.
+#
+# The workflow runs on a schedule (weekly) and can also be triggered manually.
+# It checks out the downstream repository, runs afon to apply the template, and
+# opens a pull request with any resulting changes.
+
+name: Template Updates
+run-name: Render & Apply Upstream Template
+
+concurrency:
+  group: ${{ github.repository }}:apply-template
+  cancel-in-progress: true
+
+on:
+  schedule:
+    - cron: 0 6 * * 1 # Every Monday at 06:00
+      timezone: Europe/London
+  workflow_dispatch: # Allow manual triggering
+
+# No permissions by default
+permissions: {}
+
+jobs:
+  apply:
+    name: Apply upstream template
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    # NOTE: Pin each action to a full commit SHA rather than a mutable tag or
+    #       branch for supply-chain security in production workflows.
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Apply upstream template with afon
+        uses: n3tuk/afon@latest
+        with:
+          source: https://github.com/n3tuk/afon-template
+
+      - name: Open a pull request for template changes
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: >-
+            chore(repository): Apply upstream template updates
+          body: |-
+            Automated pull request created by [afon][afon].
+
+            This pull request applies the latest changes from the upstream
+            template repository. Please review the changes and merge if
+            appropriate.
+
+            [afon]: https://github.com/n3tuk/afon
+          commit-message: >-
+            chore: apply upstream template updates
+          branch: chore/apply-template-updates
+          delete-branch: true
+          labels: |
+            release/chore
+            update/dependencies
+            type/configuration

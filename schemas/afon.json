@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/n3tuk/afon/main/schemas/afon.json",
+  "title": "afon",
+  "description": "Configuration for afon, the upstream template repository applicator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["template"],
+  "properties": {
+    "template": {
+      "description": "Settings for the upstream template repository.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "path": {
+          "description": "Optional path within the template repository that holds the template files. When set, only files within this path are processed and the path prefix is stripped from all output paths.",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Branch, tag, or commit SHA to check out when fetching a remote template repository. Ignored for local paths.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Local filesystem path or remote Git URL pointing to the upstream template repository.",
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "description": "Personal access token for authenticating against private remote template repositories. If empty, the GITHUB_TOKEN environment variable is used as a fallback.",
+          "type": "string"
+        }
+      }
+    },
+    "variables": {
+      "description": "Free-form map of values passed to the template engine as the rendering context. Template authors access these as {{ .key }}.",
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

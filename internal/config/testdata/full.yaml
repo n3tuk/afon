@@ -1,0 +1,8 @@
+---
+template:
+  source: https://github.com/org/template
+  reference: main
+
+variables:
+  project_name: my-project
+  go_version: '1.24'
