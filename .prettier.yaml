@@ -1,0 +1,8 @@
+---
+# yaml-language-server schema: https://json.schemastore.org/prettierrc.json
+
+quoteProps: as-needed
+singleQuote: true
+bracketSpacing: true
+trailingComma: es5
+semi: false

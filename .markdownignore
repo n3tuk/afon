@@ -1,0 +1,5 @@
+# This is more for Copilot than for documentation, so we can ignore most issues
+.github/copilot-instructions.md
+
+# Ignore any temporary files for CodeQL
+.codeql/*.*

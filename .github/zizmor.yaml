@@ -1,0 +1,8 @@
+---
+# yamllint disable-line rule:line-length
+# yaml-language-server: $schema=https://raw.githubusercontent.com/woodruffw/zizmor/main/support/zizmor.schema.json
+rules:
+  secrets-outside-env:
+    config:
+      allow:
+        - CODECOV_TOKEN

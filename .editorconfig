@@ -1,0 +1,43 @@
+# This is the parent configuration within this repository
+root = true
+
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+# Always use with unix-based endings and ensure all files have a new-line only
+# at the end of the file (this can occasionally cause issues with some file
+# processing if not present)
+end_of_line = lf
+insert_final_newline = true
+# Prefer space-based indentations
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+[*.yaml]
+# Prefer single quotes where possible for YAML files for consistency
+quote_type = single
+
+[*.diff]
+trim_trailing_whitespace = false
+
+[*.md]
+indent_size = 4
+trim_trailing_whitespace = false
+eclint_indent_style = unset
+
+[{*.go,.gitmodules}]
+indent_style = tab
+indent_size = 4
+
+[go.{mod,work,work.sum,sum}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
+[Dockerfile]
+indent_style = tab
+indent_size = 4

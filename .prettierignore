@@ -1,0 +1,9 @@
+# This is test data and should not be formatted or validated
+internal/config/testdata/*.yaml
+
+# Ignore any temporary files for CodeQL
+.codeql/*.*
+
+# Ignore any generated files in the dist/ directory
+dist/*.yaml
+dist/*.json
