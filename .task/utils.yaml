@@ -14,10 +14,10 @@ tasks:
       - task: utils:check:prettier
       - task: utils:check:markdownlint
       - task: utils:check:check-jsonschema
-      - task: utils:check:trivy
       - task: utils:check:codeql
       - task: utils:check:go
       - task: utils:check:goreleaser
+      - task: utils:check:tparse
       - task: utils:check:actionlint
       - task: utils:check:zizmor
       - task: utils:check:hadolint

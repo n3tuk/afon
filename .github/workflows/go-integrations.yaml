@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
 
-name: Go
+name: Go Integrations
 run-name: >-
   Go Integrations for ${{ github.event.pull_request.title || github.sha }}
 
@@ -17,8 +17,6 @@ jobs:
     strategy:
       matrix:
         version:
-          - '1.24'
-          - '1.25'
           - '1.26'
       fail-fast: false
 
@@ -43,14 +41,59 @@ jobs:
           go-version: ${{ matrix.version }}
           cache-dependency-path: go.sum
 
+      - name: Install go-junit-report
+        # yamllint disable rule:line-length
+        run: |-
+          # go install github.com/jstemmer/go-junit-report
+          go install github.com/jstemmer/go-junit-report/v2@14d61e6e75e3f3c74551d757ad936e8e88014464
+        # yamllint enable rule:line-length
+
       - name: Verify the Go modules
-        run: go mod verify
+        run: |-
+          # go mod verify
+          go mod verify
 
       - name: Download the Go modules
-        run: go mod download
+        run: |-
+          # go mod download
+          go mod download
 
       - name: Run standard tests
-        run: go test -v ./...
+        run: |-
+          # go test -v ./... -race
+          go test -v ./... \
+            -race \
+            -json \
+          > tests.json
+
+      - name: Process test results
+        if: ${{ !cancelled() }}
+        env:
+          GO_TEST_RESULTS_PATH: go-v${{ matrix.version }}-test-results.xml
+        run: |-
+          # go-junit-report -parser gojson
+          cat tests.json \
+          | go-junit-report -parser gojson > "${GO_TEST_RESULTS_PATH}"
+          rm tests.json
+
+      - name: Generate test report
+        if: ${{ !cancelled() }}
+        # yamllint disable-line rule:line-length
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        with:
+          name: Go v${{ matrix.version }} Tests
+          path: go-v${{ matrix.version }}-test-results.xml
+          reporter: java-junit
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        # yamllint disable-line rule:line-length
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: go-v${{ matrix.version }}-test-results.xml
+          path: go-v${{ matrix.version }}-test-results.xml
+          if-no-files-found: warn
+          archive: false
 
   lint:
     name: Lint
@@ -80,7 +123,7 @@ jobs:
         # yamllint disable-line rule:line-length
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: ~> v2
+          version: v2.12.2
 
   build:
     name: Build
