@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
 
-name: Release
+name: Build Release
 run-name: >-
   Building Release ${{ github.ref_name }}
 
@@ -34,7 +34,7 @@ permissions: {}
 
 jobs:
   release:
-    name: Build
+    name: GoReleaser
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update draft release and upload artefacts

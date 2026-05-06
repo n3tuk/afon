@@ -43,29 +43,61 @@ jobs:
           cache-dependency-path: go.sum
           cache: true
 
+      - name: Install go-junit-report
+        # yamllint disable rule:line-length
+        run: |-
+          # go install github.com/jstemmer/go-junit-report
+          go install github.com/jstemmer/go-junit-report/v2@14d61e6e75e3f3c74551d757ad936e8e88014464
+        # yamllint enable rule:line-length
+
       - name: Verify the Go modules
-        run: go mod verify
+        run: |-
+          # go mod verify
+          go mod verify
 
       - name: Download the Go modules
-        run: go mod download
+        run: |-
+          # go mod download
+          go mod download
 
       - name: Run coverage tests
         run: |-
+          # go test -v ./... -race
           go test -v ./... \
-            -covermode=count \
-            -coverprofile=coverage.out
+            -race \
+            -json \
+            -covermode=atomic \
+            -coverprofile=go-test-coverage.out \
+          > tests.json
 
       - name: Show coverage report summary
         run: |-
           go tool cover \
-            -func=coverage.out
+            -func=go-test-coverage.out
 
       - name: Upload coverage reports to Codecov
-        if: ${{ env.CODECOV_TOKEN != '' }}
+        if: ${{ env.CODECOV_TOKEN != '' && !cancelled() }}
         # yamllint disable-line rule:line-length
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.out
+          files: go-test-coverage.out
           name: go-cover
           flags: unit-tests
+
+      - name: Process test results
+        if: ${{ !cancelled() }}
+        run: |-
+          # go-junit-report -parser gojson
+          cat tests.json \
+          | go-junit-report -parser gojson > go-test-results.xml
+          rm tests.json
+
+      - name: Upload test results to Codecov
+        if: ${{ env.CODECOV_TOKEN != '' && !cancelled() }}
+        # yamllint disable-line rule:line-length
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: go-test-results.xml
+          name: go-tests
