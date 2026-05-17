@@ -89,9 +89,8 @@ tasks:
         identify protential code and security issues.
     silent: true
     deps:
-      - task: utils:pre-checks
-      - task: utils:pre-commit
-      - task: go:healthcheck
+      - task: pre-checks
+      - task: pre-commit
     cmds:
       - task: lint
       - task: test
