@@ -121,7 +121,7 @@ jobs:
         if: >-
           steps.files.outputs.workflows != ''
         # yamllint disable-line rule:line-length
-        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
         with:
           # Use github.token to authenticate with GitHub for zizmor checks
           token: ${{ github.token }}
@@ -155,7 +155,7 @@ jobs:
           steps.files.outputs.actions != '' &&
           ( success() || failure() )
         # yamllint disable-line rule:line-length
-        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
         with:
           token: ${{ github.token }}
           inputs: ${{ steps.files.outputs.actions }}
@@ -172,7 +172,7 @@ jobs:
           steps.files.outputs.dependabot != '' &&
           ( success() || failure() )
         # yamllint disable-line rule:line-length
-        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
         with:
           token: ${{ github.token }}
           inputs: ${{ steps.files.outputs.dependabot }}
