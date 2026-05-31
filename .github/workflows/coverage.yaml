@@ -81,8 +81,8 @@ jobs:
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: go-test-coverage.out
           name: go-cover
+          files: go-test-coverage.out
           flags: unit-tests
 
       - name: Process test results
@@ -91,7 +91,7 @@ jobs:
           # go-junit-report -parser gojson
           cat tests.json \
           | go-junit-report -parser gojson > go-test-results.xml
-          rm tests.json
+          rm -f tests.json
 
       - name: Upload test results to Codecov
         if: ${{ env.CODECOV_TOKEN != '' && !cancelled() }}
