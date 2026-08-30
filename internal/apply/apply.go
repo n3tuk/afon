@@ -82,6 +82,8 @@ func New(outputDir string) (*Applier, error) {
 //
 // When path is non-empty, only files within that path are processed and the
 // path prefix is stripped from all output paths.
+//
+//nolint:funlen // We're only just over the limit
 func (a *Applier) Apply(repo repository.Repository, path string, vars map[string]any) error {
 	fsys, err := repo.Open()
 	if err != nil {
@@ -101,8 +103,8 @@ func (a *Applier) Apply(repo repository.Repository, path string, vars map[string
 		}
 
 		if d.IsDir() {
-			// Skip the .git directory to avoid polluting or overwriting the
-			// downstream repository's git history.
+			// Skip the .git directory to avoid overwriting the downstream
+			// repository's git history.
 			if d.Name() == gitDir {
 				slog.Debug("skipping git directory", "path", fsPath)
 
@@ -129,9 +131,21 @@ func (a *Applier) Apply(repo repository.Repository, path string, vars map[string
 			}
 		}
 
-		slog.Info("processing file", "path", fsPath, "output", relPath)
+		var errP error
 
-		return a.processFile(fsys, fsPath, relPath, vars)
+		if isTemplate(relPath) {
+			slog.Info("processing template", "path", fsPath, "output", outputPath(relPath))
+			errP = a.processTemplate(fsys, fsPath, relPath, vars)
+		} else {
+			slog.Info("processing file", "path", fsPath, "output", outputPath(relPath))
+			errP = a.processFile(fsys, fsPath, relPath, vars)
+		}
+
+		if errP != nil {
+			slog.Error("error processing", "path", fsPath, "error", errP)
+		}
+
+		return errP
 	})
 	if err != nil {
 		return fmt.Errorf("walking template repository: %w", err)
