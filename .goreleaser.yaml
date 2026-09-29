@@ -1,26 +1,13 @@
 ---
+# yamllint disable-line rule:line-length
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 
 version: 2
 
 project_name: afon
 
-release:
-  github:
-    owner: n3tuk
-    name: afon
-  name_template: |-
-    {{ .Version }}
-  draft: true
 changelog:
   disable: true
-snapshot:
-  version_template: >-
-    {{ incpatch .Version }}~d{{ .Now.Format "0601021504" }}
-checksum:
-  name_template: |-
-    afon-sha512
-  algorithm: sha3-512
 
 builds:
   - id: afon
@@ -43,62 +30,138 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
     goarch:
-      - arm64
       - amd64
-      - arm
-    goarm:
-      - '7'
+      - arm64
     goamd64:
-      - v3
+      - v1
+    goarm64:
+      - v8.0
     ignore:
       - goos: darwin
         goarch: amd64
-      - goos: darwin
-        goarch: arm
-      - goos: windows
-        goarch: arm
+
+snapshot:
+  version_template: >-
+    {{incpatch .Version}}~g{{.ShortCommit}}-d{{.Now.Format "060102t1504"}}z
+
+source:
+  enabled: true
+  name_template: '{{ .ProjectName }}-v{{ .Version }}-source'
+  format: tar.gz
 
 archives:
-  - id: archive
-    builds:
+  - id: afon
+    ids:
       - afon
     name_template: |-
       {{ .ProjectName }}-v{{ .Version }}-{{ tolower .Os }}-{{ tolower .Arch }}
-    format: tar.gz
+    formats:
+      - tar.gz
     builds_info:
       group: root
       owner: root
-      mode: 0755
+      mode: 0644
       mtime: 2006-01-02T15:04:05Z
     files:
       - LICENSE
 
-# dockers_v2:
-#   - id: afon
-#     disable: "{{ .IsSnapshot }}"
-#     dockerfile: Dockerfile
-#     ids:
-#       - afon
-#     images:
-#       - gcr.io/n3tuk/afon
-#       - ghcr.io/n3tuk/afon
-#     platforms:
-#       - linux/amd64
-#       - linux/arm64
-#     tags:
-#       - "v{{ .Version }}"
-#       - "{{ .ShortCommit }}"
-#       - "{{ if .IsNightly }}nightly{{ end }}"
-#       - "{{ if not .IsNightly }}latest{{ end }}"
-#
-#     labels:
-#       "org.opencontainers.image.created": "{{.Date}}"
-#       "org.opencontainers.image.name": "{{.ProjectName}}"
-#       "org.opencontainers.image.revision": "{{.FullCommit}}"
-#       "org.opencontainers.image.version": "{{.Version}}"
-#       "org.opencontainers.image.source": "{{.GitURL}}"
-#     annotations:
-#       "project": "{{.ProjectName}}"
-#     sbom: "{{ not .IsNightly }}"
+checksum:
+  name_template: checksums.txt
+  algorithm: sha3-512
+  ids:
+    - afon
+
+sboms:
+  - id: archives
+    artifacts: archive
+    documents:
+      - '{{ .ArtifactName }}.sbom.json'
+  - id: source
+    artifacts: source
+    documents:
+      - '{{ .ArtifactName }}.sbom.json'
+
+signs:
+  - id: checksums
+    artifacts: checksum
+    # Only sign when inside GitHub Workflows as the signing credentials will
+    # only be available there
+    # if: '{{ eq .Env.GITHUB_ACTIONS "true" }}'
+    cmd: cosign
+    args:
+      - sign-blob
+      - --bundle=${signature}
+      - ${artifact}
+      - --yes
+    signature: ${artifact}.sigstore.json
+    output: true # Enable for debugging in GitHub Workflows
+
+release:
+  disable: '{{ .IsSnapshot }}'
+  github:
+    owner: n3tuk
+    name: afon
+  target_commitish: '{{ .Commit }}'
+  draft: true
+  use_existing_draft: true
+  mode: keep-existing
+  replace_existing_artifacts: true
+  extra_files:
+    - glob: checksums.txt
+
+dockers_v2:
+  - id: afon
+    disable: '{{ .IsSnapshot }}'
+    dockerfile: Dockerfile
+    ids:
+      - afon
+    images:
+      - ghcr.io/n3tuk/afon
+    tags:
+      # Only tag the commit to the image as this will be build pre-release to
+      # enable attestations and signing of the image in an immutable release;
+      # the version tags will be added in the release step, once released.
+      - '{{ .Commit }}'
+    labels:
+      org.opencontainers.image.name: '{{.ProjectName}}'
+      org.opencontainers.image.version: '{{.Version}}'
+      org.opencontainers.image.revision: '{{.FullCommit}}'
+      org.opencontainers.image.description: >-
+        A GitHub Action to manage downstream repository configirations using
+        upstream template repositories, providing consistent and automated
+        workflows for repository maintenance.
+      org.opencontainers.image.source: '{{.GitURL}}'
+      org.opencontainers.image.created: '{{.Date}}'
+    annotations:
+      project: '{{.ProjectName}}'
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    sbom: true
+
+docker_digest:
+  disable: '{{ .IsSnapshot }}'
+  name_template: digests.txt
+
+docker_signs:
+  - id: afon
+    # Only sign when inside GitHub Workflows as the signing credentials will
+    # only be available there
+    # if: '{{ eq .Env.GITHUB_ACTIONS "true" }}'
+    artifacts: all
+    ids:
+      - afon
+    cmd: cosign
+    args:
+      - sign
+      - ${artifact}
+      - --yes
+    output: true # Enable for debugging in GitHub Workflows
+
+# NOTE: Investigate using syft/cosign within GoReleaser to generate and sign
+#       SBOMs for the container images as well, as this is not directly
+#       supported by GoReleaser at the moment.
+
+announce:
+  skip: true
