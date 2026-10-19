@@ -39,7 +39,7 @@ repos:
           - --config=.prettier.yaml
         exclude: ^internal/config/testdata
         additional_dependencies:
-          - prettier@3.9.9
+          - prettier@3.9.10
         types_or:
           - markdown
           - json
