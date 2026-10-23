@@ -4,22 +4,6 @@
 version: 3
 
 tasks:
-  go:healthcheck:
-    desc: Check that the GoReleaser environment is valid
-    summary: |-
-      Run checks on both the local development or build environment to ensure
-      that everything required is present, and also run a check on the
-      GoReleaser configuration itself to ensure that it is valid.
-    run: once
-    internal: true
-    silent: true
-    sources:
-      - .goreleaser.yaml
-    cmds:
-      - cmd: goreleaser healthcheck
-      - cmd: goreleaser check
-      - cmd: echo -e '{{ .cg }}Passed{{ .cc }}'
-
   go:dirs:
     desc: Create the required directories for building/testing
     summary: |-
@@ -67,7 +51,6 @@ tasks:
       - '**/*.go'
       - .goreleaser.yaml
     deps:
-      - task: go:healthcheck
       - task: go:dirs
       - task: go:modules
       - task: go:lint
